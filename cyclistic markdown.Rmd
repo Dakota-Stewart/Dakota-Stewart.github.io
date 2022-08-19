@@ -1,0 +1,178 @@
+---
+title: "Cyclistic Analysis"
+author: "Dakota Stewart"
+date: "2022-08-19"
+output: 
+  html_document: 
+    theme: readable
+data source: "https://divvy-tripdata.s3.amazonaws.com/index.html"
+---
+
+##### Package installation and library activation.
+
+```{r}
+install.packages("tidyverse")
+
+install.packages("dplyr")
+
+install.packages("janitor")
+
+install.packages("lubradate")
+
+install.packages("ggplot2")
+
+library(tidyverse)
+
+library(dplyr)
+
+library(janitor)
+
+library(lubridate)
+
+library(ggplot2)
+```
+
+##### Setting the working directory.
+
+`setwd("~/Data analytics/capstone/Total_2021_Divvy_Tripdata")`
+
+##### Installation of my data.
+
+```{r}
+Jan_Tripdata<- read.csv("202101-divvy-tripdata.csv") 
+
+Feb_Tripdata<- read.csv("202102-divvy-tripdata.csv") 
+
+Mar_Tripdata<- read.csv("202103-divvy-tripdata.csv") 
+
+Apr_Tripdata<- read.csv("202104-divvy-tripdata.csv") 
+
+May_Tripdata<- read.csv("202105-divvy-tripdata.csv") 
+
+Jun_Tripdata<- read.csv("202106-divvy-tripdata.csv") 
+
+Jul_Tripdata<- read.csv("202107-divvy-tripdata.csv") 
+
+Aug_Tripdata<- read.csv("202108-divvy-tripdata.csv") 
+
+Sep_Tripdata<- read.csv("202109-divvy-tripdata.csv") 
+
+Oct_Tripdata<- read.csv("202110-divvy-tripdata.csv") 
+
+Nov_Tripdata<- read.csv("202111-divvy-tripdata.csv") 
+
+Dec_Tripdata<- read.csv("202112-divvy-tripdata.csv")
+```
+
+##### Merging the 12 data frames into 1 data frame.
+
+```{r}
+Total_Tripdata_2021<- rbind(Jan_Tripdata,Feb_Tripdata,Mar_Tripdata,Apr_Tripdata,May_Tripdata,Jun_Tripdata,Jul_Tripdata,Aug_Tripdata,Sep_Tripdata,Oct_Tripdata,Nov_Tripdata,Dec_Tripdata)
+```
+
+##### Cleaning empty data with janitor.
+
+```{r}
+Total_Tripdata_2021<- janitor::remove_empty(Total_Tripdata_2021,which = c("rows","cols"))
+```
+
+##### Split the start date and time column into individual columns.
+
+```{r}
+Total_Tripdata_2021$date <- as.Date(Total_Tripdata_2021$started_at) Total_Tripdata_2021$month <- format(as.Date(Total_Tripdata_2021$date), "%m") Total_Tripdata_2021$day <- format(as.Date(Total_Tripdata_2021$date), "%d") Total_Tripdata_2021$year <- format(as.Date(Total_Tripdata_2021$date), "%Y") Total_Tripdata_2021$day_of_week <- format(as.Date(Total_Tripdata_2021$date), "%A")
+```
+
+##### Calculate Ride duration per user
+
+```{r}
+Total_Tripdata_2021$Ride_Duration<- difftime(Total_Tripdata_2021$ended_at,Total_Tripdata_2021$started_at, units = "secs")
+```
+
+##### Change the format from factor to nemeric
+
+```{r}
+is.factor(Total_Tripdata_2021$Ride_Duration) Total_Tripdata_2021$Ride_Duration <- as.numeric(as.character(Total_Tripdata_2021$Ride_Duration )) is.numeric(Total_Tripdata_2021$Ride_Duration )
+```
+
+##### Clean the dataset more to remove any additional null values and create a new dataset
+
+```{r}
+Total_Tripdata_2021_v2 <- Total_Tripdata_2021[!(Total_Tripdata_2021$start_station_name == "HQ QR" | Total_Tripdata_2021$Ride_Duration>5),]
+```
+
+##### Run a summary command to collect the mean,median,max, and min data
+
+```{r}
+mean(Total_Tripdata_2021_v2$Ride_Duration) 
+median(Total_Tripdata_2021_v2$Ride_Duration) 
+max(Total_Tripdata_2021_v2$Ride_Duration) 
+min(Total_Tripdata_2021_v2$Ride_Duration) 
+summary(Total_Tripdata_2021_v2$Ride_Duration)
+```
+
+##### Compare both members and casual users
+
+```{r}
+aggregate(Total_Tripdata_2021_v2$Ride_Duration ~ Total_Tripdata_2021_v2$member_casual, FUN = mean) 
+aggregate(Total_Tripdata_2021_v2$Ride_Duration ~ Total_Tripdata_2021_v2$member_casual, FUN = median) 
+aggregate(Total_Tripdata_2021_v2$Ride_Duration ~ Total_Tripdata_2021_v2$member_casual, FUN = max) 
+aggregate(Total_Tripdata_2021_v2$Ride_Duration ~ Total_Tripdata_2021_v2$member_casual, FUN = min)
+```
+
+##### Order the days of the week so that they are easier to read
+
+```{r}
+Total_Tripdata_2021_v2$day_of_week <- ordered(Total_Tripdata_2021_v2$day_of_week, levels=c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
+```
+
+##### Calculate the average ride duration by members and casual users
+
+```{r}
+aggregate(Total_Tripdata_2021_v2$Ride_Duration ~ Total_Tripdata_2021_v2$member_casual + Total_Tripdata_2021_v2$day_of_week, FUN = mean)
+```
+
+##### Disable scientific notation for our visualization
+
+```{r}
+options(scipen = 999)
+```
+
+##### Create a visualization to display total rides and the days of the week
+
+```{r}
+Total_Tripdata_2021_v2 %>% 
+
+mutate(weekday = wday(started_at, label = TRUE)) %>% 
+
+group_by(member_casual, weekday) %>% 
+
+summarise(number_of_rides = n() ,average_duration = mean(Ride_Duration)) %>% arrange(member_casual, weekday)  %>% 
+
+ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) + geom_col(position = "dodge")+  xlab("Days of the Week")+ylab("Number of Rides ") + scale_fill_discrete(name= "Cyclistic Users") + labs(title = "Total Number of Rides in 2021",subtitle = "By Days of the Week")
+```
+
+##### Create a graph to display average ride duration for members and casual users
+
+```{r}
+Total_Tripdata_2021_v2 %>%
+
+ mutate(weekday = wday(started_at, label = TRUE)) %>% 
+
+group_by(member_casual, weekday) %>%
+
+ summarise(number_of_rides = n() ,average_duration = mean(Ride_Duration)) %>% arrange(member_casual, weekday)  %>%
+
+ ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) + geom_col(position = "dodge") +  xlab("Days of the Week")+ylab("Ride Duration") + scale_fill_discrete(name= "Cyclistic Users") + labs(title = "Average Ride Duration",subtitle = "In Seconds")
+```
+
+##### Create a exportable table to upload to tablue
+
+```{r}
+Average_Tripdata_2021 <- aggregate(Total_Tripdata_2021_v2$Ride_Duration ~ Total_Tripdata_2021_v2$member_casual + Total_Tripdata_2021_v2$day_of_week, FUN = mean)
+```
+
+##### View the exportable table
+
+```{r}
+View(Average_Tripdata_2021)
+```
